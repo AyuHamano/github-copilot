@@ -13,16 +13,15 @@ document.addEventListener("DOMContentLoaded", () => {
       // Clear loading message
       activitiesList.innerHTML = "";
 
+      // Reset select options (keep placeholder)
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
+
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
         const spotsLeft = details.max_participants - details.participants.length;
-
-        const participantsList = details.participants.length > 0
-          ? `<ul>${details.participants.map(p => `<li>${p}</li>`).join("")}</ul>`
-          : "<p><em>No participants yet</em></p>";
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -31,9 +30,49 @@ document.addEventListener("DOMContentLoaded", () => {
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <div class="participants-section">
             <strong>Participants (${details.participants.length}/${details.max_participants}):</strong>
-            ${participantsList}
           </div>
         `;
+
+        // Build participants list programmatically so we can attach remove handlers
+        const participantsSection = activityCard.querySelector('.participants-section');
+
+        if (details.participants.length > 0) {
+          const ul = document.createElement('ul');
+          details.participants.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'participant-item';
+
+            const span = document.createElement('span');
+            span.textContent = p;
+
+            const btn = document.createElement('button');
+            btn.className = 'remove-btn';
+            btn.setAttribute('aria-label', `Remove ${p}`);
+            btn.innerHTML = '✖';
+            btn.addEventListener('click', async () => {
+              try {
+                const res = await fetch(`/activities/${encodeURIComponent(name)}/participants?email=${encodeURIComponent(p)}`, { method: 'DELETE' });
+                if (res.ok) {
+                  fetchActivities();
+                } else {
+                  const err = await res.json();
+                  alert(err.detail || 'Failed to remove participant');
+                }
+              } catch (err) {
+                console.error(err);
+                alert('Failed to remove participant');
+              }
+            });
+
+            li.appendChild(span);
+            li.appendChild(btn);
+            ul.appendChild(li);
+          });
+
+          participantsSection.appendChild(ul);
+        } else {
+          participantsSection.innerHTML += '<p><em>No participants yet</em></p>';
+        }
 
         activitiesList.appendChild(activityCard);
 
